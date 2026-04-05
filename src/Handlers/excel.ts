@@ -48,7 +48,6 @@ async function recalculateSummary(sheet: ExcelJS.Worksheet, transactions: Transa
   let totalExpense = 0;
 
   transactions.forEach(tx => {
-    console.log('Processing transaction for summary:', tx.date, tx.type, tx.amount);
     const values = [tx.date, tx.type, tx.recipient, tx.category, tx.amount, tx.notes ?? ''];
     dataRows.push(values);
 

@@ -2,6 +2,8 @@
 
 A personal finance bot that runs on Telegram, uses a local LLM (via Ollama) to parse your payment messages, and logs everything into an Excel file. Fully local, private, and free to run.
 
+<img style="border-radius:50px;" src="resource\FinanceBot.gif">
+
 ---
 
 ## 🏗️ Architecture
