@@ -8,7 +8,7 @@ import { EXCEL_PATH } from "../Models/paths";
 export async function financeHandler(ctx : any) {
     const userMessage = ctx.message.text.replace("/balance", '').replace("/b", '').trim();
     console.log('txt:', userMessage);
-    console.log('txt:', EXCEL_PATH);
+    console.log('-------------------');
     if(!userMessage || userMessage.length === 0) {
         await ctx.reply('Please provide a message to log a transaction.');
         return;
@@ -20,7 +20,8 @@ export async function financeHandler(ctx : any) {
 
     console.log('Parsed transaction:', tx);
     await logTransaction(tx);
-
+    console.log('-------------------');
+    
     const emoji = tx.type === 'revenue' ? '💰' : '💸';
     await ctx.reply(
     `${emoji} Logged!\n` +

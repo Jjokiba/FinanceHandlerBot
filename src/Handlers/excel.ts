@@ -9,7 +9,14 @@ function getSheetName(date: string): string {
 }
 
 function ensureMonthSheet(workbook: ExcelJS.Workbook, sheetName: string): ExcelJS.Worksheet {
+  
   let sheet = workbook.getWorksheet(sheetName);
+  
+  if (sheet) {
+    workbook.removeWorksheet(sheetName);
+    //@ts-ignore
+    sheet = undefined;
+  }
 
   if (!sheet) {
     // Create the sheet with header row if it doesn't exist
@@ -34,31 +41,22 @@ function ensureMonthSheet(workbook: ExcelJS.Workbook, sheetName: string): ExcelJ
   return sheet;
 }
 
-async function recalculateSummary(sheet: ExcelJS.Worksheet): Promise<void> {
+async function recalculateSummary(sheet: ExcelJS.Worksheet, transactions: Transaction[]): Promise<void> {
   // 1. Collect all valid data rows first (skip header and TOTAL)
   const dataRows: any[][] = [];
   let totalRevenue = 0;
   let totalExpense = 0;
 
-  sheet.eachRow((row, rowNumber) => {
-    if (rowNumber === 1) return; // skip header
-    const firstCell = row.getCell(1).value?.toString().trim();
-    if (!firstCell || firstCell === 'TOTAL') return; // skip empty and total
-
-    const values = [1,2,3,4,5,6].map(i => row.getCell(i).value);
+  transactions.forEach(tx => {
+    console.log('Processing transaction for summary:', tx.date, tx.type, tx.amount);
+    const values = [tx.date, tx.type, tx.recipient, tx.category, tx.amount, tx.notes ?? ''];
     dataRows.push(values);
 
-    const type   = values[1]?.toString().trim();
-    const amount = Number(values[4]) || 0;
+    const type   = tx.type;
+    const amount = Number(tx.amount) || 0;
     if (type === 'revenue') totalRevenue += amount;
     if (type === 'expense') totalExpense += amount;
   });
-
-  // 2. Clear everything after the header
-  const totalRows = sheet.rowCount;
-  for (let i = totalRows; i >= 2; i--) {
-    sheet.spliceRows(i, 1);
-  }
 
   // 3. Rewrite data rows cleanly
   for (const values of dataRows) {
@@ -72,10 +70,11 @@ async function recalculateSummary(sheet: ExcelJS.Worksheet): Promise<void> {
   }
 
   // 4. Add fresh TOTAL row at the bottom
+  const dataLastRow = sheet.lastRow!.number;
   const totalRow = sheet.addRow([
     'TOTAL', '', '', '',
-    totalRevenue - totalExpense,
-    'Net balance (revenue - expenses)'
+    { formula: `SUMIF(B2:B${dataLastRow},"revenue",E2:E${dataLastRow})-SUMIF(B2:B${dataLastRow},"expense",E2:E${dataLastRow})` },
+    'Net balance'
   ]);
   totalRow.font = { bold: true };
   totalRow.getCell(5).numFmt = '"$"#,##0.00';
@@ -84,57 +83,48 @@ async function recalculateSummary(sheet: ExcelJS.Worksheet): Promise<void> {
 
 export async function logTransaction(tx: Transaction): Promise<void> {
   const workbook = new ExcelJS.Workbook();
-  await workbook.xlsx.readFile(EXCEL_PATH);
-
   const sheetName = getSheetName(tx.date);
+  let transactions = await getAllTransactions(sheetName);
+  
+  await workbook.xlsx.readFile(EXCEL_PATH);
   const sheet = ensureMonthSheet(workbook, sheetName);
 
-  // Remove TOTAL row before adding new data
-  const lastRow = sheet.lastRow?.number ?? 1;
-  const existingTotal = sheet.getRow(lastRow);
-  if (existingTotal.getCell(1).value === 'TOTAL') {
-    sheet.spliceRows(lastRow, 1);
-  }
-
+  
   // Append the new transaction row
-  const row = sheet.addRow([
-    tx.date, tx.type, tx.recipient, tx.category, tx.amount, tx.notes ?? ''
-  ]);
-
-  // Color code by type
-  row.fill = {
-    type: 'pattern', pattern: 'solid',
-    fgColor: { argb: tx.type === 'revenue' ? 'FFE2EFDA' : 'FFFCE4D6' }
-  };
-  row.getCell(5).numFmt = '"$"#,##0.00';
+  transactions.push(tx);
 
   // Recalculate total footer
-  await recalculateSummary(sheet);
+  await recalculateSummary(sheet, transactions);
 
   await workbook.xlsx.writeFile(EXCEL_PATH);
 }
 
-export async function getAllTransactions(): Promise<Transaction[]> {
+export async function getAllTransactions(sheetName?: string|undefined): Promise<Transaction[]> {
   const workbook = new ExcelJS.Workbook();
+  
   await workbook.xlsx.readFile(EXCEL_PATH);
-
+  if(sheetName !== undefined){
+      const sheet = workbook.getWorksheet(sheetName);
+  }
   const transactions: Transaction[] = [];
 
   workbook.eachSheet((sheet) => {
-    sheet.eachRow((row, rowNumber) => {
-      if (rowNumber === 1) return; // skip header
-      const val = row.getCell(1).value?.toString();
-      if (!val || val === 'TOTAL') return; // skip empty and total rows
+    if(sheetName === undefined || (sheetName !== undefined && sheet.name === sheetName)) {
+      sheet.eachRow((row, rowNumber) => {
+        if (rowNumber === 1) return; // skip header
+        const val = row.getCell(1).value?.toString();
+        if (!val || val === 'TOTAL') return; // skip empty and total rows
 
-      transactions.push({
-        date:      row.getCell(1).value as string,
-        type:      row.getCell(2).value as 'expense' | 'revenue',
-        recipient: row.getCell(3).value as string,
-        category:  row.getCell(4).value as any,
-        amount:    row.getCell(5).value as number,
-        notes:     row.getCell(6).value as string | undefined,
+        transactions.push({
+          date:      row.getCell(1).value as string,
+          type:      row.getCell(2).value as 'expense' | 'revenue',
+          recipient: row.getCell(3).value as string,
+          category:  row.getCell(4).value as any,
+          amount:    row.getCell(5).value as number,
+          notes:     row.getCell(6).value as string | undefined,
+        });
       });
-    });
+    }
   });
 
   return transactions;
