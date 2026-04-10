@@ -11,6 +11,7 @@ export type Category =
   | 'subscriptions' // Streaming, software
   | 'salary'        // Monthly income
   | 'freelance'     // Extra income
+  | 'credit'        // Credit card payments
   | 'other';        // Anything unrecognized
 
 export interface Transaction {

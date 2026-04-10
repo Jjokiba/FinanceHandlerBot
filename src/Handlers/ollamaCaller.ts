@@ -13,7 +13,7 @@ export async function parseMessage(userMessage: string, date: Date): Promise<Tra
                 - date from "${date} "(ISO format "YYYY-MM-DD", use the provided date for context if needed)
                 - type ("expense" if paying someone, "revenue" if receiving money)
                 - recipient (who was paid, or who paid you)
-                - category: one of [housing, utilities, food, transport, health, subscriptions, salary, freelance, , other]
+                - category: one of [housing, utilities, food, transport, health, subscriptions, salary, freelance, credit, other]
                 - amount (number, no currency symbols)
                 - notes (optional extra info)
                 No explanation, no markdown, just raw JSON.`
