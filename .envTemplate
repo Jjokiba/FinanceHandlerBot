@@ -1,0 +1,4 @@
+BOT_TOKEN={BOT_TOKEN}
+CHAT_ID={CHAT_ID} # (10 digits) Created to limitate the bot to send messages only to a specific chat.
+EXCEL_PATH=.\FinanceHandler\data\finances.xlsx
+OLLAMA_MODEL=qwen3-coder:30b
